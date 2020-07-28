@@ -1,5 +1,7 @@
 # Paradise-Synthesizer
 
+A little personal synthesizer written in Rust.
+
 ## License
 
 MIT

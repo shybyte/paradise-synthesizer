@@ -5,4 +5,9 @@ authors = ["Marco Stahl <shybyte@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+#soundpipe = { git = "https://github.com/shybyte/soundpipe-rs" }
 soundpipe = { path = "../soundpipe-rs" }
+midir = { git = "https://github.com/shybyte/midir" }
+midi-message = { git = "https://github.com/shybyte/midi-message-rs" }
+cpal = "0.12.1"
+anyhow = "1.0.31"
