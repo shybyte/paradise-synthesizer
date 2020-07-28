@@ -1,0 +1,8 @@
+[package]
+name = "paradise-synth"
+version = "0.1.0"
+authors = ["Marco Stahl <shybyte@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+soundpipe = { path = "../soundpipe-rs" }
