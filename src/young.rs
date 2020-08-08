@@ -1,11 +1,11 @@
 use midi_message::MidiMessage;
 use soundpipe::factory::Factory;
-use soundpipe::Soundpipe;
 use soundpipe::soundpipe::midi2cps;
 use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
 use soundpipe::ugens::oscillators::bl_saw::BlSaw;
 use soundpipe::ugens::oscillators::common::MonoOsc;
+use soundpipe::Soundpipe;
 
 use crate::synth_engine::SynthEngine;
 
