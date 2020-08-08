@@ -16,7 +16,6 @@ use crate::young::Young;
 pub mod synth_engine;
 pub mod young;
 
-
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
     let device: Device = host
@@ -97,7 +96,7 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
     let stream = device.build_output_stream(
         config,
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-            if let Ok(midi_message) = midi_rx.try_recv() {
+            while let Ok(midi_message) = midi_rx.try_recv() {
                 eprintln!(
                     "midi_message = {:?}, data.len = {:?}",
                     midi_message,
