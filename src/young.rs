@@ -1,15 +1,17 @@
-use midi_message::MidiMessage;
+use midi_message::{MidiMessage, Note};
 use soundpipe::factory::Factory;
+use soundpipe::Soundpipe;
 use soundpipe::soundpipe::midi2cps;
 use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
 use soundpipe::ugens::oscillators::bl_saw::BlSaw;
 use soundpipe::ugens::oscillators::common::MonoOsc;
-use soundpipe::Soundpipe;
 
+use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
 
 pub struct Young {
+    pressed_notes: PressedNotes,
     adsr: Adsr,
     osc1: BlSaw,
     osc2: BlSaw,
@@ -30,6 +32,7 @@ impl Young {
         let reverb = sp.revsc();
         reverb.set_feedback(0.6);
         Young {
+            pressed_notes: PressedNotes::new(),
             adsr,
             osc1,
             osc2,
@@ -39,16 +42,28 @@ impl Young {
     }
 }
 
+impl Young {
+    fn set_note(&mut self, midi_note: Note) {
+        self.osc1.set_freq(midi2cps(midi_note as f32));
+        self.osc2.set_freq(midi2cps((midi_note + 7) as f32));
+    }
+}
+
 impl SynthEngine for Young {
     fn on_midi_message(&mut self, midi_message: MidiMessage) {
         match midi_message {
             MidiMessage::NoteOn(_, midi_note, _) => {
-                self.osc1.set_freq(midi2cps(midi_note as f32));
-                self.osc2.set_freq(midi2cps((midi_note + 7) as f32));
+                self.pressed_notes.note_on(midi_note);
+                self.set_note(midi_note);
                 self.gate = 1.0;
             }
-            MidiMessage::NoteOff(_, _, _) => {
-                self.gate = 0.0;
+            MidiMessage::NoteOff(_, midi_note, _) => {
+                self.pressed_notes.note_off(midi_note);
+                if let Some(remaining_note) = self.pressed_notes.get_current_note() {
+                    self.set_note(remaining_note);
+                } else {
+                    self.gate = 0.0;
+                }
             }
             _ => {}
         }

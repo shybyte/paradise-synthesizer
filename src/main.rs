@@ -15,6 +15,7 @@ use crate::young::Young;
 
 pub mod synth_engine;
 pub mod young;
+pub mod pressed_notes;
 
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
