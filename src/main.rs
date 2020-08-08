@@ -5,18 +5,17 @@ extern crate midir;
 
 use std::sync::mpsc;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SupportedStreamConfig};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use midi_message::MidiMessage;
 use midir::{Ignore, MidiInput};
 
-use soundpipe::soundpipe::midi2cps;
-use soundpipe::Soundpipe;
-use soundpipe::SoundpipeFactory;
+use crate::synth_engine::SynthEngine;
+use crate::young::Young;
 
-struct SynthState {
-    gate: f32,
-}
+pub mod synth_engine;
+pub mod young;
+
 
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
@@ -44,9 +43,17 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
     midi_in.ignore(Ignore::None);
 
     let in_ports = midi_in.ports();
+
+    for port in in_ports.iter() {
+        eprintln!("M = {:?}", midi_in.port_name(&port));
+    }
+
     let in_port = in_ports
         .iter()
-        .find(|it| midi_in.port_name(it).unwrap().contains("VMPK"))
+        .find(|it| {
+            let name = midi_in.port_name(it).unwrap();
+            name.contains("VMPK") || name.contains("K-Board")
+        })
         .unwrap();
 
     println!("\nOpening connection");
@@ -78,26 +85,14 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
         in_port_name
     );
 
-    let sample_rate = config.sample_rate.0 as f32;
     let channels = config.channels as usize;
 
-    eprintln!("sample_rate = {:?}", sample_rate);
+    eprintln!("sample_rate = {:?}", config.sample_rate.0);
     eprintln!("channels = {:?}", channels);
-
-    let sp = Soundpipe::new(sample_rate as i32);
-    let adsr = sp.adsr();
-    adsr.set_attack_time(0.01);
-    let bl_saw = sp.bl_saw();
-    let bl_saw2 = sp.bl_saw();
-    let revsc = sp.revsc();
-    revsc.set_feedback(0.6);
-
-    bl_saw.set_freq(220.2);
-    bl_saw2.set_freq(110.0);
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
-    let mut synth_state = SynthState { gate: 0.0 };
+    let mut synth_engine = Young::new(config.sample_rate.0);
 
     let stream = device.build_output_stream(
         config,
@@ -108,26 +103,11 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
                     midi_message,
                     data.len()
                 );
-                match midi_message {
-                    MidiMessage::NoteOn(_, midi_note, _) => {
-                        let freq = midi2cps(midi_note as f32);
-                        bl_saw.set_freq(freq);
-                        bl_saw2.set_freq(freq);
-                        synth_state.gate = 1.0;
-                    }
-                    MidiMessage::NoteOff(_, _, _) => {
-                        synth_state.gate = 0.0;
-                    }
-                    _ => {}
-                }
+                synth_engine.on_midi_message(midi_message);
             }
+
             for frame in data.chunks_mut(channels) {
-                let mono = (bl_saw.compute() + bl_saw2.compute()) / 2.0
-                    * adsr.compute(synth_state.gate)
-                    * 0.7;
-                let reverbed = revsc.compute(mono, mono);
-                let left = (mono + reverbed.0) / 2.0;
-                let right = (mono + reverbed.1) / 2.0;
+                let (left, right) = synth_engine.compute_output();
                 frame[0] = cpal::Sample::from::<f32>(&left);
                 frame[1] = cpal::Sample::from::<f32>(&right);
             }
