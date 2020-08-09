@@ -5,17 +5,17 @@ extern crate midir;
 
 use std::sync::mpsc;
 
-use cpal::{Device, SupportedStreamConfig};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{BufferSize, Device, StreamConfig, SupportedStreamConfig};
 use midi_message::MidiMessage;
 use midir::{Ignore, MidiInput};
 
 use crate::synth_engine::SynthEngine;
 use crate::young::Young;
 
+pub mod pressed_notes;
 pub mod synth_engine;
 pub mod young;
-pub mod pressed_notes;
 
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
@@ -36,8 +36,8 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
-    where
-        T: cpal::Sample,
+where
+    T: cpal::Sample,
 {
     let mut midi_in = MidiInput::new("midir reading input")?;
     midi_in.ignore(Ignore::None);
@@ -68,7 +68,7 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
             in_port,
             "midir-read-input",
             move |stamp, message, _| {
-                println!("{}: {:?} (len = {})", stamp, message, message.len());
+                // println!("{}: {:?} (len = {})", stamp, message, message.len());
                 midi_tx
                     .send(MidiMessage::new(message[0], message[1], message[2]))
                     .unwrap();
@@ -94,15 +94,17 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
 
     let mut synth_engine = Young::new(config.sample_rate.0);
 
+    let lowLatencyConfig = StreamConfig {
+        buffer_size: BufferSize::Fixed(2048),
+        channels: config.channels,
+        sample_rate: config.sample_rate,
+    };
+
     let stream = device.build_output_stream(
-        config,
+        &lowLatencyConfig,
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
             while let Ok(midi_message) = midi_rx.try_recv() {
-                eprintln!(
-                    "midi_message = {:?}, data.len = {:?}",
-                    midi_message,
-                    data.len()
-                );
+                // eprintln!("midi_message = {:?}", midi_message,);
                 synth_engine.on_midi_message(midi_message);
             }
 
