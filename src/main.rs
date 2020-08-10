@@ -67,7 +67,7 @@ where
         .connect(
             in_port,
             "midir-read-input",
-            move |stamp, message, _| {
+            move |_stamp, message, _| {
                 // println!("{}: {:?} (len = {})", stamp, message, message.len());
                 midi_tx
                     .send(MidiMessage::new(message[0], message[1], message[2]))
@@ -94,14 +94,14 @@ where
 
     let mut synth_engine = Young::new(config.sample_rate.0);
 
-    let lowLatencyConfig = StreamConfig {
+    let low_latency_config = StreamConfig {
         buffer_size: BufferSize::Fixed(2048),
         channels: config.channels,
         sample_rate: config.sample_rate,
     };
 
     let stream = device.build_output_stream(
-        &lowLatencyConfig,
+        &low_latency_config,
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
             while let Ok(midi_message) = midi_rx.try_recv() {
                 // eprintln!("midi_message = {:?}", midi_message,);

@@ -6,12 +6,15 @@ use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
 use soundpipe::ugens::oscillators::bl_saw::BlSaw;
 use soundpipe::ugens::oscillators::common::MonoOsc;
+use soundpipe::ugens::port::Port;
 
 use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
 
 pub struct Young {
     pressed_notes: PressedNotes,
+    note: f32,
+    port: Port,
     adsr: Adsr,
     osc1: BlSaw,
     osc2: BlSaw,
@@ -31,8 +34,13 @@ impl Young {
 
         let reverb = sp.revsc();
         reverb.set_feedback(0.6);
+
+        let port = sp.port(0.02);
+
         Young {
             pressed_notes: PressedNotes::new(),
+            note: 64.0,
+            port,
             adsr,
             osc1,
             osc2,
@@ -44,8 +52,7 @@ impl Young {
 
 impl Young {
     fn set_note(&mut self, midi_note: Note) {
-        self.osc1.set_freq(midi2cps(midi_note as f32));
-        self.osc2.set_freq(midi2cps((midi_note + 7) as f32));
+        self.note = midi_note as f32;
     }
 }
 
@@ -70,6 +77,9 @@ impl SynthEngine for Young {
     }
 
     fn compute_output(&mut self) -> (f32, f32) {
+        let smoothed_noted = self.port.compute(self.note);
+        self.osc1.set_freq(midi2cps(smoothed_noted));
+        self.osc2.set_freq(midi2cps(smoothed_noted + 7.0));
         let mix = (self.osc1.compute() + self.osc2.compute()) / 2.0;
         let mono = mix * self.adsr.compute(self.gate) * 0.7;
         let reverbed = self.reverb.compute(mono, mono);
