@@ -10,6 +10,7 @@ use soundpipe::ugens::port::Port;
 
 use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
+use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
 
 pub struct Young {
     pressed_notes: PressedNotes,
@@ -18,6 +19,7 @@ pub struct Young {
     adsr: Adsr,
     osc1: BlSaw,
     osc2: BlSaw,
+    filter: WpKorg35,
     reverb: Revsc,
     gate: f32,
 }
@@ -35,15 +37,14 @@ impl Young {
         let reverb = sp.revsc();
         reverb.set_feedback(0.6);
 
-        let port = sp.port(0.02);
-
         Young {
             pressed_notes: PressedNotes::new(),
             note: 64.0,
-            port,
+            port: sp.port(0.02),
             adsr,
             osc1,
             osc2,
+            filter: sp.wpkorg35(),
             reverb,
             gate: 0.0,
         }
@@ -58,6 +59,9 @@ impl Young {
 
 impl SynthEngine for Young {
     fn on_midi_message(&mut self, midi_message: MidiMessage) {
+        self.filter.set_cutoff(2000.0);
+        self.filter.set_res(1.9);
+
         match midi_message {
             MidiMessage::NoteOn(_, midi_note, _) => {
                 self.pressed_notes.note_on(midi_note);
@@ -81,7 +85,8 @@ impl SynthEngine for Young {
         self.osc1.set_freq(midi2cps(smoothed_noted));
         self.osc2.set_freq(midi2cps(smoothed_noted + 7.0));
         let mix = (self.osc1.compute() + self.osc2.compute()) / 2.0;
-        let mono = mix * self.adsr.compute(self.gate) * 0.7;
+        let filtered = self.filter.compute(mix);
+        let mono = filtered * self.adsr.compute(self.gate) * 0.7;
         let reverbed = self.reverb.compute(mono, mono);
         let left = (mono + reverbed.0) / 2.0;
         let right = (mono + reverbed.1) / 2.0;
