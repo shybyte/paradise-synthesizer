@@ -4,13 +4,13 @@ use soundpipe::Soundpipe;
 use soundpipe::soundpipe::midi2cps;
 use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
+use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
 use soundpipe::ugens::oscillators::bl_saw::BlSaw;
 use soundpipe::ugens::oscillators::common::MonoOsc;
 use soundpipe::ugens::port::Port;
 
 use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
-use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
 
 pub struct Young {
     pressed_notes: PressedNotes,
@@ -59,10 +59,15 @@ impl Young {
 
 impl SynthEngine for Young {
     fn on_midi_message(&mut self, midi_message: MidiMessage) {
-        self.filter.set_cutoff(2000.0);
-        self.filter.set_res(1.9);
-
         match midi_message {
+            MidiMessage::ControlChange(_, control, value) => {
+                match control {
+                    74 => {self.filter.set_cutoff(value as f32 / 127.0 * 10_000.0)}
+                    71 => {self.filter.set_res(value as f32 / 127.0 * 2.0)}
+                    72 => {self.filter.set_saturation(value as f32 / 127.0 * 5.0)}
+                    _ => {}
+                }
+            }
             MidiMessage::NoteOn(_, midi_note, _) => {
                 self.pressed_notes.note_on(midi_note);
                 self.set_note(midi_note);
