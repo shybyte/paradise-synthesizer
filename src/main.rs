@@ -52,7 +52,7 @@ where
         .iter()
         .find(|it| {
             let name = midi_in.port_name(it).unwrap();
-            name.contains("VMPK") || name.contains("K-Board")
+            name.contains("VMPK") || name.contains("K-Board") || name.contains("Through")
         })
         .unwrap();
 
