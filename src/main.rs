@@ -13,9 +13,10 @@ use midir::{Ignore, MidiInput};
 use crate::synth_engine::SynthEngine;
 use crate::young::Young;
 
-pub mod pressed_notes;
-pub mod synth_engine;
-pub mod young;
+mod pressed_notes;
+mod synth_engine;
+mod unison;
+mod young;
 
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();

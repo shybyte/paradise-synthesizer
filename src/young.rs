@@ -1,24 +1,22 @@
 use midi_message::{MidiMessage, Note};
 use soundpipe::factory::Factory;
 use soundpipe::Soundpipe;
-use soundpipe::soundpipe::midi2cps;
 use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
 use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
-use soundpipe::ugens::oscillators::bl_saw::BlSaw;
-use soundpipe::ugens::oscillators::common::MonoOsc;
 use soundpipe::ugens::port::Port;
 
 use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
+use crate::unison::UnisonOscillator;
 
 pub struct Young {
     pressed_notes: PressedNotes,
     note: f32,
     port: Port,
     adsr: Adsr,
-    osc1: BlSaw,
-    osc2: BlSaw,
+    osc1: UnisonOscillator,
+    osc2: UnisonOscillator,
     filter: WpKorg35,
     reverb: Revsc,
     gate: f32,
@@ -31,8 +29,8 @@ impl Young {
         let adsr = sp.adsr();
         adsr.set_attack_time(0.01);
 
-        let osc1 = sp.bl_saw();
-        let osc2 = sp.bl_saw();
+        let osc1 = UnisonOscillator::new(&sp, 5, 0.1);
+        let osc2 = UnisonOscillator::new(&sp, 5, 0.1);
 
         let reverb = sp.revsc();
         reverb.set_feedback(0.6);
@@ -87,8 +85,8 @@ impl SynthEngine for Young {
 
     fn compute_output(&mut self) -> (f32, f32) {
         let smoothed_noted = self.port.compute(self.note);
-        self.osc1.set_freq(midi2cps(smoothed_noted));
-        self.osc2.set_freq(midi2cps(smoothed_noted + 7.0));
+        self.osc1.set_note(smoothed_noted);
+        self.osc2.set_note(smoothed_noted + 7.0);
         let mix = (self.osc1.compute() + self.osc2.compute()) / 2.0;
         let filtered = self.filter.compute(mix);
         let mono = filtered * self.adsr.compute(self.gate) * 0.7;
