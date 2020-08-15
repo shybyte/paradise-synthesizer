@@ -5,18 +5,17 @@ extern crate midir;
 
 use std::sync::mpsc;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Device, StreamConfig, SupportedStreamConfig};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use midi_message::MidiMessage;
 use midir::{Ignore, MidiInput};
 
-use crate::synth_engine::SynthEngine;
-use crate::young::Young;
+use crate::engines::create_enginge;
 
 mod pressed_notes;
 mod synth_engine;
 mod unison;
-mod young;
+mod engines;
 
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
@@ -37,8 +36,8 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
-where
-    T: cpal::Sample,
+    where
+        T: cpal::Sample,
 {
     let mut midi_in = MidiInput::new("midir reading input")?;
     midi_in.ignore(Ignore::None);
@@ -86,14 +85,15 @@ where
         in_port_name
     );
 
+    let sample_rate = config.sample_rate.0;
     let channels = config.channels as usize;
 
-    eprintln!("sample_rate = {:?}", config.sample_rate.0);
+    eprintln!("sample_rate = {:?}", sample_rate);
     eprintln!("channels = {:?}", channels);
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
-    let mut synth_engine = Young::new(config.sample_rate.0);
+    let mut synth_engine = create_enginge(1, sample_rate);
 
     let low_latency_config = StreamConfig {
         buffer_size: BufferSize::Fixed(2048),
@@ -105,6 +105,10 @@ where
         &low_latency_config,
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
             while let Ok(midi_message) = midi_rx.try_recv() {
+                if let MidiMessage::ProgramChange(_, program) = midi_message {
+                    eprintln!("program = {:?}", program);
+                    synth_engine = create_enginge(program, sample_rate);
+                }
                 // eprintln!("midi_message = {:?}", midi_message,);
                 synth_engine.on_midi_message(midi_message);
             }

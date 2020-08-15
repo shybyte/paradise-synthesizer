@@ -1,9 +1,12 @@
 use midi_message::{MidiMessage, Note};
 use soundpipe::factory::Factory;
 use soundpipe::Soundpipe;
+use soundpipe::soundpipe::midi2cps;
 use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
 use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
+use soundpipe::ugens::oscillators::bl_square::BlSquare;
+use soundpipe::ugens::oscillators::common::MonoOsc;
 use soundpipe::ugens::port::Port;
 
 use crate::pressed_notes::PressedNotes;
@@ -17,6 +20,7 @@ pub struct Young {
     adsr: Adsr,
     osc1: UnisonOscillator,
     osc2: UnisonOscillator,
+    sub_osc: BlSquare,
     filter: WpKorg35,
     reverb: Revsc,
     gate: f32,
@@ -42,6 +46,7 @@ impl Young {
             adsr,
             osc1,
             osc2,
+            sub_osc: sp.bl_square(),
             filter: sp.wpkorg35(),
             reverb,
             gate: 0.0,
@@ -60,9 +65,9 @@ impl SynthEngine for Young {
         match midi_message {
             MidiMessage::ControlChange(_, control, value) => {
                 match control {
-                    74 => {self.filter.set_cutoff(value as f32 / 127.0 * 10_000.0)}
-                    71 => {self.filter.set_res(value as f32 / 127.0 * 2.0)}
-                    72 => {self.filter.set_saturation(value as f32 / 127.0 * 5.0)}
+                    74 => { self.filter.set_cutoff(value as f32 / 127.0 * 10_000.0) }
+                    71 => { self.filter.set_res(value as f32 / 127.0 * 2.0) }
+                    72 => { self.filter.set_saturation(value as f32 / 127.0 * 5.0) }
                     _ => {}
                 }
             }
@@ -87,7 +92,9 @@ impl SynthEngine for Young {
         let smoothed_noted = self.port.compute(self.note);
         self.osc1.set_note(smoothed_noted);
         self.osc2.set_note(smoothed_noted + 7.0);
-        let mix = (self.osc1.compute() + self.osc2.compute()) / 2.0;
+        self.sub_osc.set_freq(midi2cps(smoothed_noted - 12.0));
+
+        let mix = (self.osc1.compute() + self.osc2.compute() + self.sub_osc.compute()) / 3.0;
         let filtered = self.filter.compute(mix);
         let mono = filtered * self.adsr.compute(self.gate) * 0.7;
         let reverbed = self.reverb.compute(mono, mono);
