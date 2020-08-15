@@ -67,10 +67,14 @@ impl SynthEngine for TestEngine {
     fn on_midi_message(&mut self, midi_message: MidiMessage) {
         match midi_message {
             MidiMessage::ControlChange(_, control, value) => {
+                let normalized_value = value as f32 / 127.0;
                 match control {
-                    74 => { self.filter.set_cutoff(value as f32 / 127.0 * 10_000.0) }
-                    71 => { self.filter.set_res(value as f32 / 127.0 * 2.0) }
-                    72 => { self.filter.set_saturation(value as f32 / 127.0 * 5.0) }
+                    1 => {
+                        self.sub_osc.set_width(normalized_value * 0.48 + 0.5)
+                    }
+                    74 => { self.filter.set_cutoff(normalized_value * 10_000.0) }
+                    71 => { self.filter.set_res(normalized_value * 2.0) }
+                    72 => { self.filter.set_saturation(normalized_value * 5.0) }
                     _ => {}
                 }
             }
