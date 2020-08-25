@@ -5,17 +5,17 @@ extern crate midir;
 
 use std::sync::mpsc;
 
-use cpal::{BufferSize, Device, StreamConfig, SupportedStreamConfig};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{BufferSize, Device, StreamConfig, SupportedStreamConfig};
 use midi_message::MidiMessage;
-use midir::{Ignore, MidiInput};
+use midir::{Ignore, MidiInput, MidiInputPort};
 
 use crate::engines::create_enginge;
 
+mod engines;
 mod pressed_notes;
 mod synth_engine;
 mod unison;
-mod engines;
 
 fn main() -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
@@ -36,28 +36,25 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
-    where
-        T: cpal::Sample,
+where
+    T: cpal::Sample,
 {
-    let mut midi_in = MidiInput::new("midir reading input")?;
-    midi_in.ignore(Ignore::None);
+    let midi_in = MidiInput::new("paradise-synth")?;
 
     let in_ports = midi_in.ports();
 
-    for port in in_ports.iter() {
-        eprintln!("M = {:?}", midi_in.port_name(&port));
+    let in_ports_with_names = in_ports
+        .into_iter()
+        .map(|port| (midi_in.port_name(&port).unwrap(), port))
+        .collect::<Vec<_>>();
+
+    for (name, _) in &in_ports_with_names {
+        eprintln!("MidiInput = {:?}", name);
     }
 
-    let in_port = in_ports
-        .iter()
-        .find(|it| {
-            let name = midi_in.port_name(it).unwrap();
-            name.contains("VMPK") || name.contains("K-Board") || name.contains("Through")
-        })
-        .unwrap();
+    let (in_port_name, in_port) = find_wanted_input_port(in_ports_with_names).unwrap();
 
     println!("\nOpening connection");
-    let in_port_name = midi_in.port_name(in_port)?;
 
     let (tx, rx) = mpsc::channel();
     let (midi_tx, midi_rx) = mpsc::channel();
@@ -65,7 +62,7 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
     // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
     let _conn_in = midi_in
         .connect(
-            in_port,
+            &in_port,
             "midir-read-input",
             move |_stamp, message, _| {
                 // println!("{}: {:?} (len = {})", stamp, message, message.len());
@@ -127,4 +124,19 @@ fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyh
     println!("Closing connection");
 
     Ok(())
+}
+
+fn find_wanted_input_port(
+    mut input_ports: Vec<(String, MidiInputPort)>,
+) -> Option<(String, MidiInputPort)> {
+    let wanted_names = vec!["VMPK", "K-Board", "Through"];
+    for wanted_name in wanted_names {
+        let matching_input_port = input_ports
+            .iter()
+            .position(|(port_name, _)| port_name.contains(wanted_name));
+        if let Some(input_port_index) = matching_input_port {
+            return Some(input_ports.swap_remove(input_port_index));
+        }
+    }
+    None
 }

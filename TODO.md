@@ -1,5 +1,7 @@
-TODO:
-Done:
-    * Prevent noteoff error    
-    * Extract synth engine into a trait.
+## TODO:
+
+## Done:
+  * Prioritize input ports 
+  * Prevent noteoff error    
+  * Extract synth engine into a trait.
      
