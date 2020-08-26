@@ -1,5 +1,4 @@
 use std::f32::consts::PI;
-use std::ops::Rem;
 
 /// Returns the signal value (between -1 and 1)
 /// # Arguments
@@ -47,19 +46,22 @@ impl UGenFactory {
         UGenFactory { sample_rate }
     }
 
+    #[allow(dead_code)]
     pub fn sin(&self) -> FunctionOsc {
         FunctionOsc::new(self.sample_rate, |x| (x * 2.0 * PI).sin())
     }
 
+    #[allow(dead_code)]
     pub fn saw(&self) -> FunctionOsc {
         FunctionOsc::new(self.sample_rate, |x| (x - 0.5) * 2.0)
     }
 
+    #[allow(dead_code)]
     pub fn triangle(&self) -> FunctionOsc {
         FunctionOsc::new(self.sample_rate, |x| match x {
-            0.0..=0.25 => x * 4.0,
-            0.25..=0.75 => 1.0 - (x - 0.25) * 4.0,
-            0.75..=1.0 => (x - 0.75) * 4.0 - 1.0,
+            _ if x <= 0.25 => x * 4.0,
+            _ if x <= 0.75 => 1.0 - (x - 0.25) * 4.0,
+            _ if x <= 1.0 => (x - 0.75) * 4.0 - 1.0,
             _ => panic!("Unsupported input {}", x),
         })
     }

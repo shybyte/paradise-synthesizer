@@ -1,7 +1,7 @@
 use midi_message::Note;
 
 pub(crate) struct PressedNotes {
-    notes: Vec<Note>
+    notes: Vec<Note>,
 }
 
 impl PressedNotes {
@@ -10,7 +10,7 @@ impl PressedNotes {
     }
 
     pub fn get_current_note(&self) -> Option<Note> {
-        self.notes.last().map(|it| *it)
+        self.notes.last().copied()
     }
 
     pub fn note_on(&mut self, note: Note) {

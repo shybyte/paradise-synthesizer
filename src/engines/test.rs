@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use std::f32::consts::PI;
-
 use midi_message::{MidiMessage, Note};
 use soundpipe::factory::Factory;
 use soundpipe::soundpipe::midi2cps;
@@ -9,7 +7,6 @@ use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
 use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
 use soundpipe::ugens::oscillators::bl_square::BlSquare;
-use soundpipe::ugens::oscillators::common::MonoOsc;
 use soundpipe::ugens::port::Port;
 use soundpipe::Soundpipe;
 
@@ -35,7 +32,7 @@ pub struct TestEngine {
 impl TestEngine {
     pub fn new(sample_rate: u32) -> Self {
         let sp = Soundpipe::new(sample_rate as i32);
-        let uGenFactory = UGenFactory::new(sample_rate);
+        let u_gen_factory = UGenFactory::new(sample_rate);
 
         let adsr = sp.adsr();
         adsr.set_attack_time(0.02);
@@ -52,7 +49,7 @@ impl TestEngine {
             note: 64.0,
             port: sp.port(0.02),
             adsr,
-            sin_osc: uGenFactory.sin(),
+            sin_osc: u_gen_factory.sin(),
             // sin_osc: FunctionOsc::new(sample_rate, |x| x),
             osc1,
             osc2,
