@@ -12,7 +12,7 @@ use soundpipe::Soundpipe;
 
 use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
-use crate::ugens::{FunctionOsc, UGenFactory};
+use crate::ugens::{FunctionOsc, SquarePmOsc, UGenFactory};
 use crate::unison::UnisonOscillator;
 
 pub struct TestEngine {
@@ -21,6 +21,7 @@ pub struct TestEngine {
     port: Port,
     adsr: Adsr,
     sin_osc: FunctionOsc,
+    square_osc: SquarePmOsc,
     osc1: UnisonOscillator,
     osc2: UnisonOscillator,
     sub_osc: BlSquare,
@@ -50,6 +51,7 @@ impl TestEngine {
             port: sp.port(0.02),
             adsr,
             sin_osc: u_gen_factory.sin(),
+            square_osc: u_gen_factory.square_pm(),
             // sin_osc: FunctionOsc::new(sample_rate, |x| x),
             osc1,
             osc2,
@@ -73,7 +75,7 @@ impl SynthEngine for TestEngine {
             MidiMessage::ControlChange(_, control, value) => {
                 let normalized_value = value as f32 / 127.0;
                 match control {
-                    1 => self.sub_osc.set_width(normalized_value * 0.48 + 0.5),
+                    1 => self.square_osc.set_width(normalized_value),
                     74 => self.filter.set_cutoff(normalized_value * 10_000.0),
                     71 => self.filter.set_res(normalized_value * 2.0),
                     72 => self.filter.set_saturation(normalized_value * 5.0),
@@ -102,9 +104,12 @@ impl SynthEngine for TestEngine {
         self.osc1.set_note(smoothed_noted);
         self.osc2.set_note(smoothed_noted + 7.0);
         self.sub_osc.set_freq(midi2cps(self.note - 12.0));
-        self.sin_osc.set_freq(midi2cps(self.note));
+        self.sin_osc.set_freq(1.0);
+        let pm_mod = self.sin_osc.compute();
+        self.square_osc.set_width(pm_mod / 2.0 + 0.5);
+        self.square_osc.set_freq(midi2cps(self.note));
 
-        let mix = self.sin_osc.compute();
+        let mix = self.square_osc.compute();
         let mono = mix * self.adsr.compute(self.gate) * 0.7;
         (mono, mono)
     }

@@ -37,6 +37,41 @@ impl FunctionOsc {
     }
 }
 
+pub struct SquarePmOsc {
+    sample_rate: u32,
+    freq: f32,
+    width: f32,
+    pos: usize,
+}
+
+impl SquarePmOsc {
+    pub fn new(sample_rate: u32) -> Self {
+        SquarePmOsc {
+            sample_rate,
+            freq: 220.0,
+            width: 0.5,
+            pos: 0,
+        }
+    }
+
+    pub fn set_freq(&mut self, freq: f32) {
+        self.freq = freq;
+    }
+
+    pub fn set_width(&mut self, width: f32) {
+        self.width = width;
+    }
+
+    pub fn compute(&mut self) -> f32 {
+        let time = (self.pos as f32) / (self.sample_rate as f32);
+        let period_length = 1.0 / self.freq;
+        let x = (time % period_length) / period_length;
+        let result = if x < self.width { 1.0 } else { -1.0 };
+        self.pos += 1;
+        result
+    }
+}
+
 pub struct UGenFactory {
     sample_rate: u32,
 }
@@ -54,6 +89,16 @@ impl UGenFactory {
     #[allow(dead_code)]
     pub fn saw(&self) -> FunctionOsc {
         FunctionOsc::new(self.sample_rate, |x| (x - 0.5) * 2.0)
+    }
+
+    #[allow(dead_code)]
+    pub fn square(&self) -> FunctionOsc {
+        FunctionOsc::new(self.sample_rate, |x| if x < 0.5 { 1.0 } else { -1.0 })
+    }
+
+    #[allow(dead_code)]
+    pub fn square_pm(&self) -> SquarePmOsc {
+        SquarePmOsc::new(self.sample_rate)
     }
 
     #[allow(dead_code)]
