@@ -8,7 +8,7 @@ use std::sync::mpsc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Device, StreamConfig, SupportedStreamConfig};
 use midi_message::MidiMessage;
-use midir::{Ignore, MidiInput, MidiInputPort};
+use midir::{MidiInput, MidiInputPort};
 
 use crate::engines::create_enginge;
 
