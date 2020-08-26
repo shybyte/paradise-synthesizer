@@ -15,6 +15,7 @@ use crate::engines::create_enginge;
 mod engines;
 mod pressed_notes;
 mod synth_engine;
+mod ugens;
 mod unison;
 
 fn main() -> Result<(), anyhow::Error> {

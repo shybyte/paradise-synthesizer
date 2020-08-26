@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 
+use std::f32::consts::PI;
+
 use midi_message::{MidiMessage, Note};
 use soundpipe::factory::Factory;
-use soundpipe::Soundpipe;
 use soundpipe::soundpipe::midi2cps;
 use soundpipe::ugens::effects::revsc::Revsc;
 use soundpipe::ugens::envelopes::adsr::Adsr;
@@ -10,9 +11,11 @@ use soundpipe::ugens::filter::wp_korg_35::WpKorg35;
 use soundpipe::ugens::oscillators::bl_square::BlSquare;
 use soundpipe::ugens::oscillators::common::MonoOsc;
 use soundpipe::ugens::port::Port;
+use soundpipe::Soundpipe;
 
 use crate::pressed_notes::PressedNotes;
 use crate::synth_engine::SynthEngine;
+use crate::ugens::{FunctionOsc, UGenFactory};
 use crate::unison::UnisonOscillator;
 
 pub struct TestEngine {
@@ -20,6 +23,7 @@ pub struct TestEngine {
     note: f32,
     port: Port,
     adsr: Adsr,
+    sin_osc: FunctionOsc,
     osc1: UnisonOscillator,
     osc2: UnisonOscillator,
     sub_osc: BlSquare,
@@ -31,6 +35,7 @@ pub struct TestEngine {
 impl TestEngine {
     pub fn new(sample_rate: u32) -> Self {
         let sp = Soundpipe::new(sample_rate as i32);
+        let uGenFactory = UGenFactory::new(sample_rate);
 
         let adsr = sp.adsr();
         adsr.set_attack_time(0.02);
@@ -47,6 +52,8 @@ impl TestEngine {
             note: 64.0,
             port: sp.port(0.02),
             adsr,
+            sin_osc: uGenFactory.sin(),
+            // sin_osc: FunctionOsc::new(sample_rate, |x| x),
             osc1,
             osc2,
             sub_osc: sp.bl_square(),
@@ -69,12 +76,10 @@ impl SynthEngine for TestEngine {
             MidiMessage::ControlChange(_, control, value) => {
                 let normalized_value = value as f32 / 127.0;
                 match control {
-                    1 => {
-                        self.sub_osc.set_width(normalized_value * 0.48 + 0.5)
-                    }
-                    74 => { self.filter.set_cutoff(normalized_value * 10_000.0) }
-                    71 => { self.filter.set_res(normalized_value * 2.0) }
-                    72 => { self.filter.set_saturation(normalized_value * 5.0) }
+                    1 => self.sub_osc.set_width(normalized_value * 0.48 + 0.5),
+                    74 => self.filter.set_cutoff(normalized_value * 10_000.0),
+                    71 => self.filter.set_res(normalized_value * 2.0),
+                    72 => self.filter.set_saturation(normalized_value * 5.0),
                     _ => {}
                 }
             }
@@ -100,8 +105,9 @@ impl SynthEngine for TestEngine {
         self.osc1.set_note(smoothed_noted);
         self.osc2.set_note(smoothed_noted + 7.0);
         self.sub_osc.set_freq(midi2cps(self.note - 12.0));
+        self.sin_osc.set_freq(midi2cps(self.note));
 
-        let mix = self.sub_osc.compute();
+        let mix = self.sin_osc.compute();
         let mono = mix * self.adsr.compute(self.gate) * 0.7;
         (mono, mono)
     }
